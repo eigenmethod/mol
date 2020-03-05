@@ -132,6 +132,56 @@ namespace $ {
 			this._error = next
 		}
 
+		wait( promise : PromiseLike< Value > ) : PromiseLike< Value > {
+
+			this.$.$mol_log2.info( this , $mol_fiber_token_sleeped , promise )
+						
+			// if( this.error === promise ) return promise
+
+			this.error = promise
+			this.cursor = $mol_fiber_status.actual
+
+			this.obsolete_slaves()
+			
+			return promise
+
+		}
+		
+		@ $mol_log2_indent.method
+		update() {
+
+			const slave = $mol_fiber.current
+			
+			try {
+				
+				$mol_fiber.current = this
+
+				this.$.$mol_log2.info( this , $mol_fiber_token_runned )
+
+				this.pull()
+
+			} catch( error ) {
+
+				if( 'then' in error ) {
+					
+					if( !error['atom-catched'] ) {
+						error['atom-catched'] = true
+						const listener = ()=> this.obsolete()
+						error = error.then( listener , listener )
+					}
+
+					this.wait( error )
+
+				}
+
+				this.fail( error )
+				
+			} finally {
+				$mol_fiber.current = slave
+			}
+
+		}
+
 		put( next : Value ) {
 			this.cursor = this.masters.length
 			next = this.push( next )
